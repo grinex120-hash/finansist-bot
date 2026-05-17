@@ -1,0 +1,7 @@
+python-telegram-bot
+gigachat
+chromadb
+apscheduler
+python-dotenv
+flask
+gunicorn

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: finansist-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn webhook_app:flask_app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false  # будет запрошено при деплое
+      - key: GIGACHAT_KEY
+        sync: false
+      - key: WEBHOOK_SECRET
+        generateValue: true  # сгенерирует случайную строку
+      - key: PORT
+        value: 10000
+    plan: free
