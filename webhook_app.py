@@ -1,60 +1,76 @@
-import sys
 import os
 import logging
-from flask import Flask, request, abort
+from fastapi import FastAPI, Request, Response
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler,
+    filters, CallbackQueryHandler
+)
+from contextlib import asynccontextmanager
+
 from config import TELEGRAM_TOKEN
 from db import init_db
 from knowledge import index_documents
 from handlers import start, help_command, inline_button_handler, handle_message
-from scheduler import start_scheduler, stop_scheduler
+from scheduler import start_scheduler
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # --- Настройки ---
-WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', 'MySuperSecretKey123')
+WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', 'MySecret')
+# Render автоматически даёт переменную RENDER_EXTERNAL_HOSTNAME
+RENDER_HOST = os.environ.get('RENDER_EXTERNAL_HOSTNAME', 'localhost')
+WEBHOOK_URL = f"https://{RENDER_HOST}/{WEBHOOK_SECRET}"
 
-# --- Инициализация БД и базы знаний ---
+# --- Инициализация бота ---
 init_db()
 index_documents()
 
-# --- Создание приложения Telegram ---
-app = Application.builder().token(TELEGRAM_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("help", help_command))
-app.add_handler(CallbackQueryHandler(inline_button_handler))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+ptb_app = Application.builder().token(TELEGRAM_TOKEN).build()
+ptb_app.add_handler(CommandHandler("start", start))
+ptb_app.add_handler(CommandHandler("help", help_command))
+ptb_app.add_handler(CallbackQueryHandler(inline_button_handler))
+ptb_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-# --- Flask приложение ---
-flask_app = Flask(__name__)
+# Планировщик
+scheduler = start_scheduler(ptb_app)  # он запустится в фоне
 
-# Запускаем планировщик (для напоминаний и отчётов) при старте
-scheduler = start_scheduler(app)
+# --- Lifespan для установки вебхука при старте ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Старт
+    await ptb_app.initialize()
+    await ptb_app.bot.set_webhook(WEBHOOK_URL, secret_token=WEBHOOK_SECRET)
+    logger.info(f"Webhook установлен на {WEBHOOK_URL}")
+    yield
+    # Остановка
+    await ptb_app.bot.delete_webhook()
+    await ptb_app.shutdown()
+    # Остановка планировщика (опционально, но хорошо бы)
+    from scheduler import stop_scheduler
+    stop_scheduler()
 
-@flask_app.route('/', methods=['GET'])
-def index():
-    """Для проверки, что сервер жив."""
-    return "Бот Финансист работает!", 200
+fastapi_app = FastAPI(lifespan=lifespan)
 
-@flask_app.route(f'/{WEBHOOK_SECRET}', methods=['POST'])
-async def webhook():
-    """Принимает обновления от Telegram."""
-    if request.method == 'POST':
-        # Проверка секретного токена (опционально, но повышает безопасность)
-        secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
-        if secret and secret != WEBHOOK_SECRET:
-            abort(403)
-        
-        json_data = request.get_json(force=True)
-        update = Update.de_json(json_data, app.bot)
-        await app.process_update(update)
-        return 'ok', 200
-    return 'Method Not Allowed', 405
+# --- Эндпоинты ---
+@fastapi_app.get("/")
+async def root():
+    return {"status": "ok"}
 
-@flask_app.route('/keep_alive', methods=['GET'])
-def keep_alive():
-    """Эндпоинт для внешнего будильника (cron-job.org)."""
-    return "OK", 200
+@fastapi_app.post(f"/{WEBHOOK_SECRET}")
+async def webhook(request: Request):
+    # Проверка секретного токена
+    secret_token = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
+    if secret_token != WEBHOOK_SECRET:
+        logger.warning("Invalid secret token")
+        return Response(status_code=403)
 
-# Для локального тестирования (опционально)
-if __name__ == '__main__':
-    flask_app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    data = await request.json()
+    update = Update.de_json(data, ptb_app.bot)
+    await ptb_app.process_update(update)
+    return Response(status_code=200)
+
+@fastapi_app.get("/keep_alive")
+async def keep_alive():
+    return Response(status_code=200)

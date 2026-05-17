@@ -3,5 +3,5 @@ gigachat
 chromadb
 apscheduler
 python-dotenv
-flask
-gunicorn
+fastapi
+uvicorn
