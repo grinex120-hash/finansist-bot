@@ -3,10 +3,9 @@ from telegram import Update
 from telegram.ext import ContextTypes
 import db
 import keyboards
-from .summary import get_main_summary
+from summary import get_main_summary   # <--- исправлено
 
 async def ensure_onboarding(user_id: int, context: ContextTypes.DEFAULT_TYPE, silent=False, start_message=True):
-    """Возвращает True, если онбординг не нужен (профиль уже существует)."""
     profile = db.get_user_profile(user_id)
     if not profile:
         if not silent:
@@ -27,7 +26,6 @@ async def handle_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     step = context.user_data.get('onboarding_step', 0)
 
-    # На время анкеты кнопки меню неактивны – принимаем любой текст как ответ
     if step == 1:
         db.update_user_setting(user_id, 'first_name', text)
         context.user_data['onboarding_step'] = 2

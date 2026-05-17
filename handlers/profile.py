@@ -1,6 +1,7 @@
 from datetime import datetime
 import db
 import keyboards
+from summary import get_main_summary   # <--- если используется, но в текущем profile.py get_main_summary не нужен, только get_profile_text
 
 def get_profile_text(user_id: int):
     snap = db.get_financial_snapshot(user_id)
@@ -29,7 +30,6 @@ def get_profile_text(user_id: int):
     if snap['trend']:
         lines.append(snap['trend'])
 
-    # ---- Новые метрики финансовой грамотности ----
     if snap['cushion_target'] > 0:
         lines.append(f"🛡️ Подушка безопасности: {snap['cushion_current']:.0f} / {snap['cushion_target']:.0f} ₽ ({snap['cushion_percent']:.0f}%)")
     else:
@@ -41,7 +41,6 @@ def get_profile_text(user_id: int):
         lines.append(f"{snap['debt_emoji']} Долговая нагрузка: {snap['debt_load']:.1f}%")
     else:
         lines.append(f"🟢 Долговая нагрузка: 0%")
-    # ---------------------------------------------
 
     if snap['reg_incomes'] or snap['reg_expenses']:
         lines.append("\n📅 Плановые регулярные:")

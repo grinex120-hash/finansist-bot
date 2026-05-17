@@ -4,7 +4,6 @@ import db
 import keyboards
 
 async def handle_income(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
-    """Обработка доходов (+сумма описание) и целевых операций (*сумма описание)."""
     user_id = update.effective_user.id
     try:
         parts = text[1:].split(maxsplit=1)
@@ -16,7 +15,6 @@ async def handle_income(update: Update, context: ContextTypes.DEFAULT_TYPE, text
             await update.message.reply_text(f"🎉 Доход {amount:.0f} ₽ ({desc}) успешно записан!", reply_markup=keyboards.get_main_keyboard())
         elif text.startswith("*"):
             db.add_expense_transaction(user_id, amount, desc, "другое")
-            # Пополнение цели по ключевому слову
             for word in desc.split():
                 goal_row = db.find_goal_by_keyword(user_id, word)
                 if goal_row:

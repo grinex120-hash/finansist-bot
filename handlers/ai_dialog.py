@@ -10,7 +10,6 @@ import prompts
 async def handle_ai_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
     user_id = update.effective_user.id
 
-    # Кэш снэпшота на 30 секунд
     cache_key = f"snapshot_{user_id}"
     snapshot_cache = context.user_data.get(cache_key)
     if snapshot_cache and (time.time() - snapshot_cache['timestamp']) < 30:
@@ -24,7 +23,6 @@ async def handle_ai_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE, t
         await update.message.reply_text("👋 Чтобы я мог давать советы, сначала добавьте хотя бы один доход или расход.", reply_markup=keyboards.get_main_keyboard())
         return
 
-    # Формируем контекст из снэпшота
     ctx_parts = [
         f"💰 Текущий доход за месяц: {snap['inc_sum']:.0f} ₽",
         f"💸 Текущие расходы за месяц: {snap['exp_sum']:.0f} ₽"
@@ -53,7 +51,6 @@ async def handle_ai_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE, t
             debt_lines.append(f"  • {d[1]}: {d[2]:.0f} ₽ ({d[3]}%) – ежемес. {d[5]:.0f} ₽, осталось {d[6]:.0f} ₽")
         ctx_parts.append("\n".join(debt_lines))
 
-    # Лимиты (можно добавить в снэпшот, пока берём из БД)
     month = snap['date'].strftime('%Y-%m')
     limit_lines = []
     for cat in ["еда","транспорт","жильё","здоровье","развлечения","одежда","связь","кредиты/долги","накопления","другое"]:
@@ -76,7 +73,6 @@ async def handle_ai_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE, t
 
     financial_context = "\n".join(ctx_parts)
 
-    # Поиск в базе знаний
     knowledge_context = ""
     keywords = ["долг", "бюджет", "копить", "инвести", "процент", "финанс", "кредит", "сбереж", "накоп"]
     if any(kw in text.lower() for kw in keywords):
@@ -90,7 +86,6 @@ async def handle_ai_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE, t
     if knowledge_context:
         system_msg += knowledge_context
 
-    # rate limiting через utils.check_rate_limit
     if not utils.check_rate_limit(user_id):
         await update.message.reply_text("⏳ Вы слишком часто задаёте вопросы. Подождите немного.", reply_markup=keyboards.get_main_keyboard())
         return

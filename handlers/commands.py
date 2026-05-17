@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 import db
 import keyboards
 from .onboarding import ensure_onboarding
-from .summary import get_main_summary
+from summary import get_main_summary   # <--- исправлено (абсолютный импорт)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -37,7 +37,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Просто вводи `+5000 зарплата`, `-350 обед` или давай сразу настроим твой профиль!"
         )
         await update.message.reply_text(hello, reply_markup=keyboards.get_main_keyboard())
-        # Запускаем онбординг – теперь с автоматическим первым вопросом
         await ensure_onboarding(user_id, context)
         return
 
@@ -47,7 +46,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     summary = get_main_summary(user_id)
     if summary:
         await update.message.reply_text(summary, parse_mode="Markdown", reply_markup=keyboards.get_main_keyboard())
-
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(

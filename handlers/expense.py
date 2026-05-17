@@ -6,7 +6,6 @@ import keyboards
 import utils
 
 async def handle_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
-    """Обработка расходов (-сумма описание)."""
     user_id = update.effective_user.id
     try:
         parts = text[1:].split(maxsplit=1)
@@ -15,7 +14,6 @@ async def handle_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, tex
         cat = utils.categorize_expense(desc)
         db.add_expense_transaction(user_id, amount, desc, cat)
 
-        # Проверка лимитов
         month = datetime.now().strftime('%Y-%m')
         limit = db.check_category_limit(user_id, cat, month)
         if limit:
@@ -25,7 +23,6 @@ async def handle_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, tex
             elif spent >= limit * 0.8:
                 await update.message.reply_text(f"🔸 80% лимита по «{cat}» достигнуто.", reply_markup=keyboards.get_main_keyboard())
 
-        # Проверка челленджей на воздержание
         challenges = db.get_active_challenges(user_id)
         for c in challenges:
             if c[2] == 'avoid_spending' and c[4] and cat.lower() == c[4].lower():
@@ -35,7 +32,6 @@ async def handle_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, tex
                     reply_markup=keyboards.get_main_keyboard()
                 )
 
-        # Автосписание долга
         if cat == "кредиты/долги":
             for word in desc.split():
                 debt_row = db.find_debt_by_keyword(user_id, word)

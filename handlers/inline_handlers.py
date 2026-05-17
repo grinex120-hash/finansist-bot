@@ -4,13 +4,13 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 import db
 from .profile import get_profile_text
-from .summary import get_main_summary
+from summary import get_main_summary   # <--- исправлено: абсолютный импорт
 import utils
 import charts
 import keyboards
 import prompts
-import io            # <-- добавлено
-import export        # <-- добавлено
+import io
+import export
 
 # Вспомогательные функции подменю
 async def show_goals_menu(query, user_id):
